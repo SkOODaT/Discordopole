@@ -58,7 +58,8 @@ class Boards(commands.Cog):
                             else:
                                 move_2 = self.bot.moves[str(move_2)]["name"]
 
-                            entry = f"{ex_emote}**{name}**: {self.bot.locale['until']} {end}\n**{mon_name}** {form_letter}- *{move_1} / {move_2}*\n\n"
+                            egg_emote = self.bot.custom_emotes[f"raid_egg_{level}"]
+                            entry = f"{egg_emote} {ex_emote}**{name}**: {self.bot.locale['until']} {end}\n**{mon_name}** {form_letter}- *{move_1} / {move_2}*\n"
                             if length + len(entry) >= 2048:
                                 break
                             else:
