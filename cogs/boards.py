@@ -160,7 +160,7 @@ class Boards(commands.Cog):
                     else:
                         scanned_active_ratio = int(round((scanned_active[0][0] / mon_active[0][0] * 100), 0))
                     if not "scanned_today" in board['type']:
-                        text = f"{text}{self.bot.locale['scanned']}: **{scanned_ratio}%** {self.bot.locale['active']}\n"
+                        text = f"{text}{self.bot.locale['scanned']}: **{scanned_active_ratio}%** {self.bot.locale['active']}\n"
 
                 if "scanned_today" in board['type']:
                     scanned_today = await queries.statboard_scanned_today(self.bot.config, area[0])
@@ -307,7 +307,7 @@ class Boards(commands.Cog):
                         text = f"{text}{self.bot.custom_emotes['raid_egg_2']} **{egg_active[0][2]:,}** {self.bot.locale['active_eggs']}\n"
                     if "raid_lvl_1_active" in board['type']:
                         text = f"{text}1⭐: **{raid_active[0][1]:,}** {self.bot.locale['raids']} | **{egg_active[0][1]:,}** {self.bot.locale['eggs']}\n"
-                    elif "egg_lvl_2_active" in board['type']:
+                    elif "egg_lvl_1_active" in board['type']:
                         text = f"{text}{self.bot.custom_emotes['raid_egg_1']} **{egg_active[0][1]:,}** {self.bot.locale['active_eggs']}\n"
                 
                 if "stop_amount" in board['type']:
