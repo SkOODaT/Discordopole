@@ -16,6 +16,11 @@ class Boards(commands.Cog):
         self.short = pyshorteners.Shortener().tinyurl.short
         self.board_loop.start()
         self.quest_loop.start()
+        self.invasion_loop.start()
+
+        with open('data/grunt_types.json', 'r') as f:
+            self.bot.invasionsJson = json.load(f)
+        #print("Invasion Data Loaded")
 
     @tasks.loop(seconds=2.0)   
     async def board_loop(self):
@@ -433,12 +438,97 @@ class Boards(commands.Cog):
                 print("Error while updating Quest Board. Skipping it.")
                 await asyncio.sleep(5)
 
+    @tasks.loop(seconds=60.0)  
+    async def invasion_loop(self):
+        for board in self.bot.boards['invasions']:
+            try:
+                channel = await self.bot.fetch_channel(board["channel_id"])
+                message = await channel.fetch_message(board["message_id"])
+                area = get_area(board["area"])
+                text = ""
+                invasions = await queries.get_active_invasions(self.bot.config, area[0])
+
+                length = 0
+                reward_invasions = list()
+                lat_list = list()
+                lon_list = list()
+
+                for type_ids in board["types"]:
+                    for grunt_type, incident_expire_timestamp, lat, lon, stop_name, stop_id in invasions:
+
+                        found_rewards = True
+                        type_id = grunt_type
+                        timer = str()
+                        typeName = str()
+                        grunt = str()
+                        gender = str()
+                        second_reward = str()
+                        encounters = str()
+                        emote = str()
+
+                        if type_id == type_ids:
+                            incident_expire_timestamp = datetime.fromtimestamp(incident_expire_timestamp) \
+                                                         .strftime(self.bot.locale['time_format_hm'])
+                            typeName = self.bot.invasionsJson[str(type_id)]['type']
+                            grunt = self.bot.invasionsJson[str(type_id)]['grunt']
+                            gender = self.bot.invasionsJson[str(type_id)]['gender']
+                            second_reward = self.bot.invasionsJson[str(type_id)]['second_reward']
+                            encounters = self.bot.invasionsJson[str(type_id)]['encounters']
+                            emote = self.bot.custom_emotes[f"g{type_id}"]
+                            reward_invasions.append([type_id, lat, lon])
+                        else:
+                            found_rewards = False
+                        
+                        if found_rewards:
+                            if len(stop_name) >= 30:
+                                stop_name = stop_name[0:27] + "..."
+                            lat_list.append(lat)
+                            lon_list.append(lon)
+
+                            if self.bot.config['use_map']:
+                                map_url = self.bot.map_url.invasion(lat, lon, stop_id)
+                            else:
+                                map_url = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
+                            map_url = self.short(map_url)
+
+                            entry = f"{emote} {typeName} ({grunt}) {incident_expire_timestamp}\n[{stop_name}]({map_url})\n"
+                            if length + len(entry) >= 2048:
+                                break
+                            else:
+                                text = text + entry
+                                length = length + len(entry)
+
+                static_map_img = ""
+                if length > 0:
+                    if self.bot.config['use_static']:
+                        static_map_img = await self.bot.static_map.invasion(lat_list, lon_list, reward_invasions, self.bot.custom_emotes)
+                else:
+                    text = self.bot.locale["empty_board"]  
+
+                embed = discord.Embed(title=board['title'], description=text, timestamp=datetime.utcnow())
+                embed.set_footer(text=area[1])
+                embed.set_image(url=static_map_img)
+
+                if len(board["types"]) == 2:
+                    embed.set_thumbnail(url=f"{self.bot.config['inv_icon_repo']}Images/grunttype/{board['types'][0]}.png")
+
+                await message.edit(embed=embed)
+                await asyncio.sleep(2)
+            except Exception as err:              
+                print(err)
+                print("Error while updating Invasion Board. Skipping it.")
+                await asyncio.sleep(5)
+
     @board_loop.before_loop
     async def before_boards(self):
         await self.bot.wait_until_ready()
 
     @quest_loop.before_loop
     async def before_quests(self):
+        await self.bot.wait_until_ready()
+
+    @invasion_loop.before_loop
+    async def before_invasion(self):
         await self.bot.wait_until_ready()
 
 def setup(bot):

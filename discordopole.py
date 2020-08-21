@@ -498,7 +498,7 @@ async def on_ready():
 
     if bot.config['use_static']:
         trash_channel = await bot.fetch_channel(bot.config['host_channel'])
-        bot.static_map = util.maps.static_map(config['static_provider'], config['static_key'], trash_channel, bot.config['mon_icon_repo'])
+        bot.static_map = util.maps.static_map(config['static_provider'], config['static_key'], config['style'], trash_channel, bot.config['mon_icon_repo'], bot.config['inv_icon_repo'])
 
 if __name__ == "__main__":
     for extension in extensions:

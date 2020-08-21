@@ -151,6 +151,18 @@ async def get_active_quests(config, area):
     await cursor_active_quests.close()
     return quests
 
+async def get_active_invasions(config, area):
+    cursor_active_invasions = await connect_db(config)
+    if config['db_scan_schema'] == "mad":
+        print('TODO MAD')
+        #await cursor_active_quests.execute(f"select quest_reward, quest_task, latitude, longitude, name, pokestop_id from trs_quest left join pokestop on trs_quest.GUID = pokestop.pokestop_id WHERE quest_timestamp > UNIX_TIMESTAMP(CURDATE()) AND ST_CONTAINS(ST_GEOMFROMTEXT('POLYGON(({area}))'), point(latitude, longitude)) ORDER BY quest_item_id ASC, quest_pokemon_id ASC, name;")
+    elif config['db_scan_schema'] == "rdm":
+        await cursor_active_invasions.execute(f"select grunt_type, incident_expire_timestamp, lat, lon, name, id from pokestop WHERE grunt_type IS NOT NULL AND ST_CONTAINS(ST_GEOMFROMTEXT('POLYGON(({area}))'), point(lat, lon)) ORDER BY grunt_type ASC, name;")
+    invasions = await cursor_active_invasions.fetchall()
+
+    await cursor_active_invasions.close()
+    return invasions
+
 async def get_gym_stats(config, area):
     cursor_gym_stats = await connect_db(config)
     if config['db_scan_schema'] == "mad":

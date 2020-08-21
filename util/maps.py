@@ -8,11 +8,13 @@ import json
 from io import BytesIO
 
 class static_map:
-    def __init__(self, provider, key, trash_channel, icons):
+    def __init__(self, provider, key, style, trash_channel, icons, iicons):
         self.provider = provider
         self.key = key
+        self.style = style
         self.trash_channel = trash_channel
         self.icons = icons
+        self.iicons = iicons
 
     def get_zoom(self, ne, sw, width, height, tile_size):
         ne = [c * 1.06 for c in ne]
@@ -74,11 +76,51 @@ class static_map:
         elif self.provider == "tileserver":
             zoom = self.get_zoom(ne, sw, width, height, 256)
 
-            data = {"style": "osm-bright","latitude": center_lat,"longitude": center_lon,"zoom": zoom,"width": width,"height": height,"scale": 1,"markers": []}
+            data = {"style": self.style,"latitude": center_lat,"longitude": center_lon,"zoom": zoom,"width": width,"height": height,"scale": 1,"markers": []}
             for mon_id, mon_lat, mon_lon in mons:
                 data["markers"].append({"url": f"{self.icons}pokemon_icon_{str(mon_id).zfill(3)}_00.png","height": 32,"width": 32,"x_offset": 0,"y_offset": 0,"latitude": mon_lat,"longitude": mon_lon})
             for item_id, item_lat, item_lon in items:
                 data["markers"].append({"url": f"{self.icons}rewards/reward_{item_id}_1.png","height": 32,"width": 32,"x_offset": 0,"y_offset": 0,"latitude": item_lat,"longitude": item_lon})
+
+            result = requests.post(f"{self.key}staticmap", json=data, headers={"content-type": "application/json;charset=utf-8"})
+            stream = BytesIO(result.content)
+            image_msg = await self.trash_channel.send(file=discord.File(stream, filename="map.png"))
+            static_map = image_msg.attachments[0].url
+            stream.close()
+
+        return static_map
+
+    async def invasion(self, lat, lon, type_ids, custom_emotes):
+        width = 1000
+        height = 600
+        ne = [max(lat), max(lon)]
+        sw = [min(lat), min(lon)]       
+        center_lat = min(lat) + ((max(lat) - min(lat)) / 2)
+        center_lon = min(lon) + ((max(lon) - min(lon)) / 2)
+        if self.provider == "mapbox":
+            zoom = self.get_zoom(ne, sw, width, height, 512)
+            static_map = "https://api.mapbox.com/styles/v1/mapbox/outdoors-v11/static/"
+            for type_id, type_lat, type_lon in type_ids:
+                type_img = custom_emotes[f"g{type_id}"]
+                type_img = type_img[:-1].split(":")
+                type_img = f"https%3A%2F%2Fcdn.discordapp.com%2Femojis%2F{type_img[2]}.png%3Fsize=32"
+                static_map = f"{static_map}url-{type_img}({type_lon},{type_lat}),"
+
+            static_map = static_map[:-1]
+            static_map = f"{static_map}/{center_lon},{center_lat},{zoom}/{width}x{height}?access_token={self.key}"
+
+            urllib.request.urlretrieve(static_map, "invasion_static_map_temp.png")
+            image_msg = await self.trash_channel.send(file=discord.File("invasion_static_map_temp.png"))
+            static_map = image_msg.attachments[0].url
+            os.remove("invasion_static_map_temp.png")
+
+        elif self.provider == "tileserver":
+            zoom = self.get_zoom(ne, sw, width, height, 256)
+
+            data = {"style": self.style,"latitude": center_lat,"longitude": center_lon,"zoom": zoom,"width": width,"height": height,"scale": 1,"markers": []}
+
+            for type_id, type_lat, type_lon in type_ids:
+                data["markers"].append({"url": f"{self.iicons}Images/grunttype/{type_id}.png","height": 32,"width": 32,"x_offset": 0,"y_offset": 0,"latitude": type_lat,"longitude": type_lon})
 
             result = requests.post(f"{self.key}staticmap", json=data, headers={"content-type": "application/json;charset=utf-8"})
             stream = BytesIO(result.content)
@@ -102,3 +144,13 @@ class map_url:
             quest_url = f"{self.url}?lat={lat}&lon={lon}&zoom=18"
 
         return quest_url
+
+    def invasion(self, lat, lon, stop_id):
+        if self.frontend == "pmsf":
+            invasion_url = f"{self.url}?lat={lat}&lon={lon}&zoom=18&stopId={stop_id}"
+        elif self.frontend == "rdm":
+            invasion_url = f"{self.url}@pokestop/{stop_id}"
+        else:
+            invasion_url = f"{self.url}?lat={lat}&lon={lon}&zoom=18"
+
+        return invasion_url
